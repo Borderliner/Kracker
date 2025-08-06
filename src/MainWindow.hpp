@@ -39,6 +39,7 @@
 #include <utility>
 
 constexpr std::pair<int, int> DEFAULT_WINDOW_SIZE {1024, 768};
+constexpr int PROCESS_FINISH_WAIT_MS = 5000;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -52,15 +53,16 @@ private slots:
     void on_stop_clicked();
     void on_process_output();
     void on_process_finished(int exit_code, QProcess::ExitStatus exit_status);
-    //void on_hash_type_changed(int index);
-    /* void on_browse_hash_file();
-    void on_browse_word_list();
-    void on_browse_rules_file(); */
+    // void on_hash_type_changed(int index);
+    void on_engine_changed(int index);
 
 private:
+    enum class Engine { Hashcat, John };
+
     struct HashType {
-        int id;
+        int hashcat_id;
         QString name;
+        QString john_name; // John The Ripper format name
         QString example;
     };
 
@@ -69,19 +71,21 @@ private:
     void load_settings();
     void save_settings();
     void parse_hashcat_output(std::string_view output);
+    void parse_john_output(std::string_view output);
     void update_status(const QString& message);
+    void update_hash_types();
     std::string_view trim_view(std::string_view sv);
-    /* void log_output(this auto&& self, const QString& message) {
-        
-    } */
 
-    QProcess m_hashcat_process;
+    QProcess m_process;
+    Engine m_current_engine = Engine::Hashcat;
     std::unique_ptr<QStandardItemModel> m_result_model;
     KConfigGroup m_config;
     std::vector<HashType> m_hash_types;
+    std::unordered_map<int, int> m_hash_type_index_map; // Maps hash type IDs to combo box indices
     QFutureWatcher<void> m_output_parser_watcher;
 
     // UI Elements
+    QComboBox* m_engine_combo { nullptr };
     QComboBox* m_hash_type_combo { nullptr };
     QComboBox* m_attack_mode_combo { nullptr };
     QLineEdit* m_hash_file_edit { nullptr };
