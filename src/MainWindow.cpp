@@ -1,12 +1,15 @@
 #include "MainWindow.hpp"
-#include <qtpreprocessorsupport.h>
+
+#include <charconv>
+#include <algorithm>
+#include <ranges>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_config(KSharedConfig::openConfig(), "MainWindow")
     , m_result_model(std::make_unique<QStandardItemModel>()) {
 
-    setWindowTitle(i18n("KHashcat"));
+    setWindowTitle(i18n("Kracker"));
     resize(DEFAULT_WINDOW_SIZE.first, DEFAULT_WINDOW_SIZE.second);
 
     // Initialize hash types
@@ -234,9 +237,72 @@ void MainWindow::parse_hashcat_output(std::string_view output) {
     QList<QList<QStandardItem*>> new_rows;
 
     // Simple parsing - TODO: Make it more sophisticated
-    /* for (auto line : std::ranges::views::split(output, '\n')) {
+    for (auto line : std::ranges::views::split(output, '\n')) {
+        std::string_view line_sv(line.begin(), line.end());
 
-    } */
+        if (line_sv.empty()) continue;
+
+        // Status updates
+        if (line_sv.starts_with("Status:")) {
+            const auto msg = QString::fromUtf8(line_sv.data(), line_sv.size());
+            QMetaObject::invokeMethod(this, [this, msg] {
+                update_status(msg);
+            });
+            continue;
+        }
+
+        // Progress update
+        if (line_sv.find("Progress:") != std::string_view::npos) {
+            // Parse progress percentage
+            size_t pct_start = line_sv.find(":") + 1;
+            size_t pct_end = line_sv.find("%");
+            if (pct_start < pct_end) {
+                auto pct_str = line_sv.substr(pct_start, pct_end - pct_start);
+                int pct = 0;
+                std::from_chars(pct_str.data(), pct_str.data() + pct_str.size(), pct);
+
+                QMetaObject::invokeMethod(this, [this, pct] {
+                    m_progress_bar->setRange(0, 100);
+                    m_progress_bar->setValue(pct);
+                });
+            }
+            continue;
+        }
+
+        // Found hashes (simplified)
+        if (line_sv.find(':') != std::string_view::npos) {
+            size_t colon_pos = line_sv.find(':');
+            if (colon_pos != std::string_view::npos) {
+                std::string_view hash = line_sv.substr(0, colon_pos);
+                std::string_view password = line_sv.substr(colon_pos + 1);
+                
+                // Trim whitespace if needed
+                hash = trim_view(hash);
+                password = trim_view(password);
+
+                auto* hash_item = new QStandardItem(QString::fromUtf8(hash.data(), hash.size()));
+                auto* pass_item = new QStandardItem(QString::fromUtf8(password.data(), password.size()));
+
+                QMetaObject::invokeMethod(this, [this, hash_item, pass_item] {
+                    m_result_model->appendRow({hash_item, pass_item});
+                });
+            }
+        }
+        result.append(QString::fromUtf8(line_sv.data(), line_sv.size())).append('\n');
+    }
+
+    if (!result.isEmpty()) {
+        QMetaObject::invokeMethod(m_output_edit, [this, result] {
+            m_output_edit->appendPlainText(result);
+        });
+    }
+}
+
+std::string_view MainWindow::trim_view(std::string_view sv) {
+    constexpr auto whitespace = " \t\n\r\f\v";
+    sv.remove_prefix(std::min(sv.find_first_not_of(whitespace), sv.size()));
+    sv.remove_suffix(std::min(sv.size() - sv.find_last_not_of(whitespace) - 1, sv.size()));
+    return sv;
 }
 
 void MainWindow::on_process_finished(int exit_code, QProcess::ExitStatus exit_status) {

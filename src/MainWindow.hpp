@@ -28,6 +28,7 @@
 #include <QFile>
 #include <QStringList>
 #include <QOverload>
+#include <QMetaObject>
 
 #include <KLocalizedString>
 #include <KConfigGroup>
@@ -37,7 +38,7 @@
 #include <string_view>
 #include <utility>
 
-const std::pair<int, int> DEFAULT_WINDOW_SIZE {1024, 768};
+constexpr std::pair<int, int> DEFAULT_WINDOW_SIZE {1024, 768};
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -69,6 +70,7 @@ private:
     void save_settings();
     void parse_hashcat_output(std::string_view output);
     void update_status(const QString& message);
+    std::string_view trim_view(std::string_view sv);
     /* void log_output(this auto&& self, const QString& message) {
         
     } */
