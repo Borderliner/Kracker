@@ -2,7 +2,6 @@
 
 #include <charconv>
 #include <algorithm>
-#include <qvariant.h>
 #include <ranges>
 
 MainWindow::MainWindow(QWidget* parent)
@@ -59,6 +58,23 @@ void MainWindow::setup_ui() {
     m_engine_combo = new QComboBox();
     m_engine_combo->addItem(i18n("Hashcat"), QVariant::fromValue(Engine::Hashcat));
     m_engine_combo->addItem(i18n("John The Ripper"), QVariant::fromValue(Engine::John));
+
+    m_hardware_combo = new QComboBox();
+    m_hardware_combo->addItem(i18n("Auto Detect"), QVariant::fromValue(HardwareAccel::Auto));
+    m_hardware_combo->addItem(i18n("CPU Only"), QVariant::fromValue(HardwareAccel::CPU));
+    m_hardware_combo->addItem(i18n("NVIDIA CUDA"), QVariant::fromValue(HardwareAccel::NVIDIA_CUDA));
+    m_hardware_combo->addItem(i18n("AMD OpenCL"), QVariant::fromValue(HardwareAccel::AMD_OpenCL));
+
+    m_device_combo = new QComboBox();
+    m_device_combo->setEnabled(false); // Will be enabled when hardware is selected
+
+    m_optimized_kernel_check = new QCheckBox(i18n("Optimized Kernel"));
+    m_optimized_kernel_check->setChecked(true);
+
+    m_workload_profile_spin = new QSpinBox();
+    m_workload_profile_spin->setRange(1, 4);
+    m_workload_profile_spin->setValue(3);
+    m_workload_profile_spin->setToolTip(i18n("1=Low, 2=Default, 3=High, 4=Nightmare"));
 
     m_hash_type_combo = new QComboBox();
     m_attack_mode_combo = new QComboBox();
@@ -133,6 +149,10 @@ void MainWindow::setup_ui() {
     rules_layout->addWidget(make_browse_button(m_rules_edit, i18n("Select Rules File"), i18n("Rules (*.rule);;All Files (*)")));
 
     form_layout->addRow(i18n("Engine:"), m_engine_combo);
+    form_layout->addRow(i18n("Hardware:"), m_hardware_combo);
+    form_layout->addRow(i18n("Device:"), m_device_combo);
+    form_layout->addRow(i18n("Performance:"), m_workload_profile_spin);
+    form_layout->addRow(m_optimized_kernel_check);
     form_layout->addRow(i18n("Hash Type:"), m_hash_type_combo);
     form_layout->addRow(i18n("Attack Mode:"), m_attack_mode_combo);
     form_layout->addRow(i18n("Hash File:"), hash_file_layout);
@@ -165,6 +185,12 @@ void MainWindow::setup_connections() {
     connect(&m_process, &QProcess::readyReadStandardOutput, this, &MainWindow::on_process_output);
     connect(&m_process, &QProcess::readyReadStandardError, this, &MainWindow::on_process_output);
     connect(&m_process, &QProcess::finished, this, &MainWindow::on_process_finished);
+    connect(m_hardware_combo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
+        m_current_hardware = static_cast<HardwareAccel>(m_hardware_combo->itemData(index).toInt());
+        m_device_combo->setEnabled(m_current_hardware != HardwareAccel::Auto && 
+                                m_current_hardware != HardwareAccel::CPU);
+        update_device_list();
+    });
 }
 
 void MainWindow::update_hash_types() {
@@ -183,31 +209,85 @@ void MainWindow::update_hash_types() {
     }
 }
 
+void MainWindow::update_device_list() {
+    m_device_combo->clear();
+    
+    if (m_current_engine != Engine::Hashcat || 
+        m_current_hardware == HardwareAccel::Auto || 
+        m_current_hardware == HardwareAccel::CPU) {
+        return;
+    }
+
+    // Run hashcat with --benchmark to detect devices
+    QProcess detect_process;
+    QStringList args = {"--benchmark", "--quiet"};
+    
+    if (m_current_hardware == HardwareAccel::NVIDIA_CUDA) {
+        args << "--opencl-device-types" << "2"; // CUDA
+    } else if (m_current_hardware == HardwareAccel::AMD_OpenCL) {
+        args << "--opencl-device-types" << "1"; // GPU
+    }
+
+    detect_process.start("hashcat", args);
+    detect_process.waitForFinished();
+    
+    QString output = detect_process.readAllStandardOutput();
+    QStringList lines = output.split('\n', Qt::SkipEmptyParts);
+    
+    // Parse device info (simplified - real parsing would need more complex regex)
+    for (const QString& line : lines) {
+        if (line.contains("Device #")) {
+            QString device_name = line.section(':', 1).trimmed();
+            int device_id = line.section('#', 1).section(':', 0, 0).toInt();
+            m_device_combo->addItem(QString("Device %1: %2").arg(device_id).arg(device_name), device_id);
+        }
+    }
+    
+    if (m_device_combo->count() == 0) {
+        m_device_combo->addItem(i18n("No compatible devices found"), -1);
+    }
+}
+
 void MainWindow::load_settings() {
     m_config.config()->reparseConfiguration();
     restoreGeometry(m_config.readEntry("WindowGeometry", QByteArray()));
     m_engine_combo->setCurrentIndex(m_config.readEntry("LastEngine", 0));
+    m_hardware_combo->setCurrentIndex(m_config.readEntry("LastHardware", 0));
     m_hash_file_edit->setText(m_config.readEntry("LastHashFile"));
     m_word_list_edit->setText(m_config.readEntry("LastWordlist"));
     m_rules_edit->setText(m_config.readEntry("LastRulesFile"));
     m_hash_type_combo->setCurrentIndex(m_config.readEntry("LastHashType", 0));
     m_attack_mode_combo->setCurrentIndex(m_config.readEntry("LastAttackMode", 0));
+    m_optimized_kernel_check->setChecked(m_config.readEntry("OptimizedKernel", true));
+    m_workload_profile_spin->setValue(m_config.readEntry("WorkloadProfile", 3));
 }
 
 void MainWindow::save_settings() {
     m_config.writeEntry("WindowGeometry", saveGeometry());
     m_config.writeEntry("LastEngine", m_engine_combo->currentIndex());
+    m_config.writeEntry("LastHardware", m_hardware_combo->currentIndex());
     m_config.writeEntry("LastHashFile", m_hash_file_edit->text());
     m_config.writeEntry("LastWordlist", m_word_list_edit->text());
     m_config.writeEntry("LastRulesFile", m_rules_edit->text());
     m_config.writeEntry("LastHashType", m_hash_type_combo->currentIndex());
     m_config.writeEntry("LastAttackMode", m_attack_mode_combo->currentIndex());
+    m_config.writeEntry("OptimizedKernel", m_optimized_kernel_check->isChecked());
+    m_config.writeEntry("WorkloadProfile", m_workload_profile_spin->value());
     m_config.sync();
 }
 
 void MainWindow::on_engine_changed(int index) {
     m_current_engine = static_cast<Engine>(m_engine_combo->itemData(index).toInt());
     update_hash_types();
+
+    // Enable/disable hardware acceleration controls based on engine
+    bool is_hashcat = (m_current_engine == Engine::Hashcat);
+    m_hardware_combo->setEnabled(is_hashcat);
+    m_device_combo->setEnabled(is_hashcat && m_current_hardware != HardwareAccel::Auto && 
+                            m_current_hardware != HardwareAccel::CPU);
+    m_optimized_kernel_check->setCheckState(is_hashcat ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+    m_optimized_kernel_check->setEnabled(is_hashcat);
+    m_workload_profile_spin->setEnabled(is_hashcat);
 
     // Update attack mode combo
     m_attack_mode_combo->clear();
@@ -256,10 +336,38 @@ void MainWindow::on_start_clicked() {
             "--hash-type", QString::number(m_hash_type_combo->currentData().toInt()),
             "--attack-mode", QString::number(m_attack_mode_combo->currentData().toInt()),
             "--potfile-disable", // Don't use potfile to see all results
-            "--force", // Ignore warnings
             hash_file
         };
 
+        // Add hardware acceleration options
+        if (m_current_hardware != HardwareAccel::Auto) {
+            if (m_current_hardware == HardwareAccel::CPU) {
+                args << "--opencl-device-types" << "1"; // CPU only
+            } else if (m_current_hardware == HardwareAccel::NVIDIA_CUDA) {
+                args << "--opencl-device-types" << "2"; // NVIDIA CUDA
+            } else if (m_current_hardware == HardwareAccel::AMD_OpenCL) {
+                args << "--opencl-device-types" << "1"; // AMD GPU (uses OpenCL)
+            }
+            
+            // Add specific device if selected
+            if (m_device_combo->isEnabled() && m_device_combo->currentData().toInt() >= 0) {
+                args << "--opencl-devices" << m_device_combo->currentData().toString();
+            }
+        }
+
+        // Add performance options
+        args << "--workload-profile" << QString::number(m_workload_profile_spin->value());
+
+        if (m_optimized_kernel_check->isChecked()) {
+            args << "-O"; // Optimized kernel
+        }
+
+        // Add force flag for GPU modes to ignore warnings
+        if (m_current_hardware != HardwareAccel::CPU) {
+            args << "--force";
+        }
+
+        // Add wordlist if specified
         const auto wordlist = m_word_list_edit->text();
         if (!wordlist.isEmpty()) {
             if (!QFile::exists(wordlist)) {
@@ -269,6 +377,7 @@ void MainWindow::on_start_clicked() {
             args << wordlist;
         }
 
+        // Add rules if specified
         const auto rules = m_rules_edit->text();
         if (!rules.isEmpty()) {
             if (!QFile::exists(rules)) {
@@ -277,6 +386,7 @@ void MainWindow::on_start_clicked() {
             }
             args << "--rules-file" << rules;
         }
+
     } else { // John The Ripper
         program = "john";
         args = {

@@ -29,6 +29,9 @@
 #include <QStringList>
 #include <QOverload>
 #include <QMetaObject>
+#include <QCheckBox>
+#include <QSpinBox>
+#include <QVariant>
 
 #include <KLocalizedString>
 #include <KConfigGroup>
@@ -58,6 +61,12 @@ private slots:
 
 private:
     enum class Engine { Hashcat, John };
+    enum class HardwareAccel {
+        CPU,
+        NVIDIA_CUDA,
+        AMD_OpenCL,
+        Auto
+    };
 
     struct HashType {
         int hashcat_id;
@@ -74,10 +83,12 @@ private:
     void parse_john_output(std::string_view output);
     void update_status(const QString& message);
     void update_hash_types();
+    void update_device_list();
     std::string_view trim_view(std::string_view sv);
 
     QProcess m_process;
     Engine m_current_engine = Engine::Hashcat;
+    HardwareAccel m_current_hardware = HardwareAccel::Auto;
     std::unique_ptr<QStandardItemModel> m_result_model;
     KConfigGroup m_config;
     std::vector<HashType> m_hash_types;
@@ -86,8 +97,12 @@ private:
 
     // UI Elements
     QComboBox* m_engine_combo { nullptr };
+    QComboBox* m_hardware_combo { nullptr };
+    QComboBox* m_device_combo { nullptr };
     QComboBox* m_hash_type_combo { nullptr };
     QComboBox* m_attack_mode_combo { nullptr };
+    QCheckBox* m_optimized_kernel_check { nullptr };
+    QSpinBox* m_workload_profile_spin { nullptr };
     QLineEdit* m_hash_file_edit { nullptr };
     QLineEdit* m_word_list_edit { nullptr };
     QLineEdit* m_rules_edit { nullptr };
