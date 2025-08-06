@@ -1,7 +1,4 @@
 #include "MainWindow.hpp"
-
-#include <charconv>
-#include <algorithm>
 #include <ranges>
 
 MainWindow::MainWindow(QWidget* parent)
@@ -54,7 +51,7 @@ void MainWindow::setup_ui() {
     auto central_widget = new QWidget(this);
     setCentralWidget(central_widget);
 
-    // Create UI elements
+    // Create UI elements (same as before)
     m_engine_combo = new QComboBox();
     m_engine_combo->addItem(i18n("Hashcat"), QVariant::fromValue(Engine::Hashcat));
     m_engine_combo->addItem(i18n("John The Ripper"), QVariant::fromValue(Engine::John));
@@ -66,7 +63,8 @@ void MainWindow::setup_ui() {
     m_hardware_combo->addItem(i18n("AMD OpenCL"), QVariant::fromValue(HardwareAccel::AMD_OpenCL));
 
     m_device_combo = new QComboBox();
-    m_device_combo->setEnabled(false); // Will be enabled when hardware is selected
+    m_device_combo->setEnabled(false);
+    m_device_combo->setMinimumWidth(150);
 
     m_optimized_kernel_check = new QCheckBox(i18n("Optimized Kernel"));
     m_optimized_kernel_check->setChecked(true);
@@ -90,14 +88,13 @@ void MainWindow::setup_ui() {
     m_progress_bar = new QProgressBar();
     m_status_label = new QLabel();
 
-    m_result_model->setHorizontalHeaderLabels({ i18n("Hash"), i18n("Password")  });
+    m_result_model->setHorizontalHeaderLabels({ i18n("Hash"), i18n("Password") });
     m_result_view->setModel(m_result_model.get());
     m_result_view->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
-    // Populate initial hash types
+    // Populate initial hash types and attack modes (same as before)
     update_hash_types();
-
-    // Attack modes
+    
     const QList<std::pair<int, QString>> attack_modes = {
         { 0, i18n("Straight (Dictionary)") },
         { 1, i18n("Combination") },
@@ -105,25 +102,11 @@ void MainWindow::setup_ui() {
         { 6, i18n("Hybrid Wordlist + Mask") },
         { 7, i18n("Hybrid Mask + Wordlist") }
     };
-
     for (const auto& am : attack_modes) {
         m_attack_mode_combo->addItem(am.second, am.first);
     }
 
-    // Setup layouts
-    auto main_layout = new QVBoxLayout(central_widget);
-
-    // Engine selection
-    auto engine_layout = new QHBoxLayout();
-    engine_layout->addWidget(new QLabel(i18n("Engine:")));
-    engine_layout->addWidget(m_engine_combo);
-    engine_layout->addStretch();
-
-    // Input group
-    auto input_group = new QGroupBox(i18n("Input Parameters"));
-    auto form_layout = new QFormLayout();
-
-    // Helper lambda for creating browse buttons
+    // Helper lambda for creating browse buttons (same as before)
     auto make_browse_button = [this](QLineEdit* line_edit, const QString& title, const QString& filter) {
         auto button = new QPushButton("...");
         button->setFixedWidth(30);
@@ -136,29 +119,60 @@ void MainWindow::setup_ui() {
         return button;
     };
 
+    // Setup layouts
+    auto main_layout = new QVBoxLayout(central_widget);
+
+    // Backend Group - All in one row
+    auto backend_group = new QGroupBox(i18n("Backend"));
+    auto backend_layout = new QHBoxLayout();
+    
+    // Add backend controls to the horizontal layout
+    backend_layout->addWidget(new QLabel(i18n("Engine:")));
+    backend_layout->addWidget(m_engine_combo);
+    backend_layout->addWidget(new QLabel(i18n("Hardware:")));
+    backend_layout->addWidget(m_hardware_combo);
+    backend_layout->addWidget(new QLabel(i18n("Device:")));
+    backend_layout->addWidget(m_device_combo);
+    backend_layout->addWidget(new QLabel(i18n("Performance:")));
+    backend_layout->addWidget(m_workload_profile_spin);
+    backend_layout->addWidget(m_optimized_kernel_check);
+    backend_layout->addStretch(); // Push everything to the left
+    
+    backend_group->setLayout(backend_layout);
+
+    // Definitions Group
+    auto definitions_group = new QGroupBox(i18n("Definitions"));
+    auto definitions_layout = new QFormLayout();
+    
+    // First row: Hash Type and Attack Mode
+    auto hash_attack_layout = new QHBoxLayout();
+    hash_attack_layout->addWidget(new QLabel(i18n("Hash Type:")));
+    hash_attack_layout->addWidget(m_hash_type_combo);
+    hash_attack_layout->addWidget(new QLabel(i18n("Attack Mode:")));
+    hash_attack_layout->addWidget(m_attack_mode_combo);
+    hash_attack_layout->addStretch();
+    definitions_layout->addRow(hash_attack_layout);
+
+    // File inputs with browse buttons
     auto hash_file_layout = new QHBoxLayout();
+    hash_file_layout->addWidget(new QLabel(i18n("Hash File: ")));
     hash_file_layout->addWidget(m_hash_file_edit);
     hash_file_layout->addWidget(make_browse_button(m_hash_file_edit, i18n("Select Hash File"), i18n("Text Files (*.txt);;All Files (*)")));
+    definitions_layout->addRow(hash_file_layout);
 
     auto word_list_layout = new QHBoxLayout();
+    word_list_layout->addWidget(new QLabel(i18n("Wordlist:  ")));
     word_list_layout->addWidget(m_word_list_edit);
     word_list_layout->addWidget(make_browse_button(m_word_list_edit, i18n("Select Wordlist"), i18n("Wordlists (*.txt *.dic);;All Files (*)")));
+    definitions_layout->addRow(word_list_layout);
 
     auto rules_layout = new QHBoxLayout();
+    rules_layout->addWidget(new QLabel(i18n("Rules File:")));
     rules_layout->addWidget(m_rules_edit);
     rules_layout->addWidget(make_browse_button(m_rules_edit, i18n("Select Rules File"), i18n("Rules (*.rule);;All Files (*)")));
+    definitions_layout->addRow(rules_layout);
 
-    form_layout->addRow(i18n("Engine:"), m_engine_combo);
-    form_layout->addRow(i18n("Hardware:"), m_hardware_combo);
-    form_layout->addRow(i18n("Device:"), m_device_combo);
-    form_layout->addRow(i18n("Performance:"), m_workload_profile_spin);
-    form_layout->addRow(m_optimized_kernel_check);
-    form_layout->addRow(i18n("Hash Type:"), m_hash_type_combo);
-    form_layout->addRow(i18n("Attack Mode:"), m_attack_mode_combo);
-    form_layout->addRow(i18n("Hash File:"), hash_file_layout);
-    form_layout->addRow(i18n("Wordlist:"), word_list_layout);
-    form_layout->addRow(i18n("Rules File:"), rules_layout);
-    input_group->setLayout(form_layout);
+    definitions_group->setLayout(definitions_layout);
 
     // Button layout
     auto button_layout = new QHBoxLayout();
@@ -166,7 +180,9 @@ void MainWindow::setup_ui() {
     button_layout->addWidget(m_stop_button);
     button_layout->addStretch();
 
-    main_layout->addWidget(input_group);
+    // Main layout organization
+    main_layout->addWidget(backend_group);
+    main_layout->addWidget(definitions_group);
     main_layout->addWidget(new QLabel(i18n("Output:")));
     main_layout->addWidget(m_output_edit);
     main_layout->addWidget(m_progress_bar);

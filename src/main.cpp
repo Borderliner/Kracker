@@ -10,12 +10,12 @@
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
 
-    KLocalizedString::setApplicationDomain("KHashCat");
+    KLocalizedString::setApplicationDomain("KDE");
 
     KAboutData about_data {
-        QStringLiteral("KHashCat"),
-        i18n("KHashCat"),
-        QStringLiteral("0.1"),
+        QStringLiteral("Kracker"),
+        i18n("Kracker"),
+        QStringLiteral("0.3"),
         i18n("Graphical interface for Hashcat"),
         KAboutLicense::GPL_V3,
         i18n("© 2025 Mohammadreza Hajianpour")
