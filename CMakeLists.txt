@@ -21,6 +21,8 @@ find_package(KF6WidgetsAddons REQUIRED)
 find_package(KF6Config REQUIRED)
 find_package(KF6Crash REQUIRED)
 find_package(KF6DBusAddons REQUIRED)
+find_package(KF6I18n REQUIRED)
+find_package(KF6IconThemes REQUIRED)
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -42,4 +44,40 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     KF6::DBusAddons
 )
 
+# Install icons (for when app is installed)
+set(KDE_INSTALL_ICONDIR "${CMAKE_INSTALL_DATADIR}/icons")
+install(
+    DIRECTORY icons/hicolor
+    DESTINATION "${KDE_INSTALL_ICONDIR}"
+)
+
+# Make icons available in build directory (for debug mode)
+file(COPY icons/hicolor DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Install desktop file (which will reference your icon)
+set(KDE_INSTALL_APPDIR "${CMAKE_INSTALL_DATADIR}/applications")
+configure_file(kracker.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/kracker.desktop)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kracker.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+
+# Install app
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Packaging configuration
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION "Graphical interface for Hashcat & John The Ripper")
+set(CPACK_PACKAGE_CONTACT "Mohammadreza Hajianpour <hajianpour.mr@gmail.com>")
+set(CPACK_PACKAGE_VENDOR "Mohammadreza Hajianpour")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "kracker")
+
+# DEB specific settings
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Mohammadreza Hajianpour <hajianpour.mr@gmail.com>")
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6 (>= 6.2), libqt6gui6 (>= 6.2), libqt6widgets6 (>= 6.2), kcoreaddons, ki18n, kwidgetsaddons")
+
+# RPM specific settings
+set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase >= 6.2, kf6-kcoreaddons, kf6-ki18n, kf6-kwidgetsaddons")
+set(CPACK_RPM_PACKAGE_LICENSE "GPLv3")
+
+include(CPack)

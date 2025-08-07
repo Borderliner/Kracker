@@ -13,10 +13,10 @@ int main(int argc, char* argv[]) {
     KLocalizedString::setApplicationDomain("KDE");
 
     KAboutData about_data {
-        QStringLiteral("Kracker"),
+        QStringLiteral("kracker"),
         i18n("Kracker"),
         QStringLiteral("0.3"),
-        i18n("Graphical interface for Hashcat"),
+        i18n("Graphical interface for Hashcat & John the Ripper"),
         KAboutLicense::GPL_V3,
         i18n("© 2025 Mohammadreza Hajianpour")
     };

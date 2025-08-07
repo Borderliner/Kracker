@@ -1,5 +1,5 @@
-#ifndef MAIN_WINDOW_H
-#define MAIN_WINDOW_H
+#ifndef MAIN_WINDOW_HPP
+#define MAIN_WINDOW_HPP
 
 #include <QMainWindow>
 #include <QProcess>
@@ -32,6 +32,7 @@
 #include <QCheckBox>
 #include <QSpinBox>
 #include <QVariant>
+#include <QIcon>
 
 #include <KLocalizedString>
 #include <KConfigGroup>
@@ -41,12 +42,12 @@
 #include <string_view>
 #include <utility>
 
-constexpr std::pair<int, int> DEFAULT_WINDOW_SIZE {1024, 768};
-constexpr int PROCESS_FINISH_WAIT_MS = 5000;
-
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
+private:
+    static constexpr std::pair<int, int> DEFAULT_WINDOW_SIZE {1024, 768};
+    static constexpr int PROCESS_FINISH_WAIT_MS = 5000;
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;

@@ -6,7 +6,27 @@ MainWindow::MainWindow(QWidget* parent)
     , m_config(KSharedConfig::openConfig(), "MainWindow")
     , m_result_model(std::make_unique<QStandardItemModel>()) {
 
-    setWindowTitle(i18n("Kracker"));
+    // Try multiple methods to find the icon
+    QIcon icon;
+    
+    // 1. First try theme icon (works after installation)
+    if (QIcon::hasThemeIcon("kracker")) {
+        icon = QIcon::fromTheme("kracker");
+    }
+    // 2. Try build directory (debug mode)
+    else if (QFile::exists("hicolor/512x512/apps/kracker.png")) {
+        icon = QIcon("hicolor/512x512/apps/kracker.png");
+    }
+    // 3. Try source directory (alternative debug mode)
+    else if (QFile::exists("../icons/hicolor/512x512/apps/kracker.png")) {
+        icon = QIcon("../icons/hicolor/512x512/apps/kracker.png");
+    }
+    // 4. Fallback to embedded resource
+    else {
+        icon = QIcon(":/icons/kracker.png");
+    }
+    
+    setWindowIcon(icon);
     resize(DEFAULT_WINDOW_SIZE.first, DEFAULT_WINDOW_SIZE.second);
 
     // Initialize hash types (common ones for both backends)
