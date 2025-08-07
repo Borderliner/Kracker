@@ -36,19 +36,72 @@ A modern KDE-based graphical interface for **Hashcat** and **John the Ripper**, 
 - Qt 6
 - Hashcat 6.2+ **or** John the Ripper 1.9.0+
 - OpenCL runtime **or** CUDA toolkit
+- Ubuntu: `sudo apt install -y hashcat john`
+- Fedora: `sudo dnf install -y hashcat john`
+- Arch Linux: `sudo pacman -S hashcat john`
 ### Build
 - CMake 3.21+
 - GCC 11+ or Clang 14+
 - KDE development packages
 - Qt 6 development packages
+
+#### Build Packages
+- Ubuntu
+```
+sudo apt update
+sudo apt install -y \
+    cmake \
+    extra-cmake-modules \
+    clang \                    # Optional (if you want Clang)
+    build-essential \          # GCC/G++ fallback
+    qt6-base-dev \
+    libkf6coreaddons-dev \
+    libkf6i18n-dev \
+    libkf6widgetsaddons-dev \
+    libkf6config-dev \
+    libkf6crash-dev \
+    libkf6dbusaddons-dev \
+    libkf6iconthemes-dev
+```
+- Fedora
+```
+sudo dnf install -y \
+    cmake \
+    extra-cmake-modules \
+    clang \                    # Optional (if you want Clang)
+    gcc-c++ \                  # GCC fallback
+    qt6-qtbase-devel \
+    kf6-kcoreaddons-devel \
+    kf6-ki18n-devel \
+    kf6-kwidgetsaddons-devel \
+    kf6-kconfig-devel \
+    kf6-kcrash-devel \
+    kf6-kdbusaddons-devel \
+    kf6-kiconthemes-devel
+```
+- Arch Linux
+```
+sudo pacman -Syu --needed \
+    cmake \
+    extra-cmake-modules \
+    clang \                  # Optional, Recommended
+    qt6-base \
+    kcoreaddons \
+    ki18n \
+    kwidgetsaddons \
+    kconfig \
+    kcrash \
+    kdbusaddons \
+    kiconthemes
+```
 ## Installation
 ### From Source
 ```
 git clone https://github.com/Borderliner/kracker.git
 cd kracker
-mkdir build
-cd build cmake -DCMAKE_INSTALL_PREFIX=/usr ..
-make
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release ..
+make -j$(nproc)
 sudo make install
 ```
 ### Package Installation

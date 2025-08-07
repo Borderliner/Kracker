@@ -1,8 +1,40 @@
 cmake_minimum_required(VERSION 3.21)
-set(PROJECT_VERSION 0.3)
-set(PROJECT_NAME Kracker VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 
-project(${PROJECT_NAME})
+# --- Compiler Selection ---
+if(NOT DEFINED CMAKE_CXX_COMPILER)
+    # Prefer Clang on all platforms
+    find_program(CLANG_CPP 
+        NAMES clang++ clang-cl clang  # clang-cl is MSVC-compatible Clang on Windows
+        PATHS ENV PATH
+    )
+    if(CLANG_CPP)
+        set(CMAKE_CXX_COMPILER "${CLANG_CPP}" CACHE STRING "C++ compiler" FORCE)
+    endif()
+endif()
+
+set(PROJECT_NAME Kracker)
+string(TOLOWER "${PROJECT_NAME}" PROJECT_NAME_LOWERCASE)
+set(PROJECT_VERSION 0.3)
+set(PROJECT_LANG CXX)
+
+project(
+    ${PROJECT_NAME}
+    VERSION ${PROJECT_VERSION}
+    LANGUAGES ${PROJECT_LANG}
+)
+
+# --- Compiler Verification ---
+message(STATUS "Using C++ compiler: ${CMAKE_CXX_COMPILER_ID}")  # Prints Clang/GNU/MSVC
+
+# --- Compiler-Specific Settings ---
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Clang-specific flags
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # GCC-specific flags
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # MSVC-specific flags
+    add_compile_options(/std:c++latest)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,6 +75,21 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     KF6::Crash
     KF6::DBusAddons
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_options(-O3)  # Force maximum optimization
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-march=native)  # Optimize for current CPU
+        add_compile_options(-flto)          # Alternative LTO flag
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        add_compile_options(/Ox /fp:fast)   # MSVC optimizations
+    endif()
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT error)
+    if(ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+endif()
 
 # Install icons (for when app is installed)
 set(KDE_INSTALL_ICONDIR "${CMAKE_INSTALL_DATADIR}/icons")
