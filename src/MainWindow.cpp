@@ -112,7 +112,7 @@ void MainWindow::setup_ui() {
     m_result_view->setModel(m_result_model.get());
     m_result_view->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
-    // Populate initial hash types and attack modes (same as before)
+    // Populate initial hash types and attack modes
     update_hash_types();
     
     const QList<std::pair<int, QString>> attack_modes = {
@@ -126,7 +126,7 @@ void MainWindow::setup_ui() {
         m_attack_mode_combo->addItem(am.second, am.first);
     }
 
-    // Helper lambda for creating browse buttons (same as before)
+    // Helper lambda for creating browse buttons
     auto make_browse_button = [this](QLineEdit* line_edit, const QString& title, const QString& filter) {
         auto button = new QPushButton("...");
         button->setFixedWidth(30);
@@ -142,7 +142,7 @@ void MainWindow::setup_ui() {
     // Setup layouts
     auto main_layout = new QVBoxLayout(central_widget);
 
-    // Backend Group - All in one row
+    // Backend Group
     auto backend_group = new QGroupBox(i18n("Backend"));
     auto backend_layout = new QHBoxLayout();
     
@@ -240,7 +240,7 @@ void MainWindow::update_hash_types() {
             m_hash_type_index_map[ht.hashcat_id] = index++;
         } else { // John The Ripper
             m_hash_type_combo->addItem(ht.name, ht.john_name);
-            // For John, we just use the index directly since we're using strings
+            // For John, just use the index directly since we're using strings
         }
     }
 }
@@ -270,7 +270,7 @@ void MainWindow::update_device_list() {
     QString output = detect_process.readAllStandardOutput();
     QStringList lines = output.split('\n', Qt::SkipEmptyParts);
     
-    // Parse device info (simplified - real parsing would need more complex regex)
+    // Parse device info (TODO: real parsing would need more complex regex)
     for (const QString& line : lines) {
         if (line.contains("Device #")) {
             QString device_name = line.section(':', 1).trimmed();
